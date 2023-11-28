@@ -1,4 +1,5 @@
 import requests
+from datetime import datetime, timezone
 from dataclasses import dataclass
 
 @dataclass
@@ -39,6 +40,7 @@ class OneGovAPI():
 
     def __init__(self, AUTH:Auth, BASE_URL:str="https://api.onegov.nsw.gov.au"):
         self.BASE_URL = BASE_URL
+        self.AUTH = AUTH
 
     def get_oauth_token(self):
 
@@ -46,7 +48,7 @@ class OneGovAPI():
         _raw = requests.get(
             url     = self.BASE_URL + "/oauth/client_credential/accesstoken",
             params  = {"grant_type":"client_credentials"},
-            headers = {"Authorization": FUEL_AUTH.AUTH_HAEDER}
+            headers = {"Authorization": self.AUTH.AUTH_HAEDER}
         )
 
         # Get JSON response
@@ -65,5 +67,34 @@ class FuelAPI(OneGovAPI):
         super().__init__(AUTH, BASE_URL)
 
 
+    def getJSON(self, path:str, params:dict={}, additional_headers:dict={}):
+        
+        # Get current time in their requested fucked up format.
+        utc_timestamp = datetime.now(timezone.utc).strftime('%d/%m/%Y %I:%M:%S %p')
+
+        _raw = requests.get(
+            url         =   self.BASE_URL + path,
+            params      =   params,
+            headers     =   {
+                "Authorization"     :   f"Bearer {self.TOKEN.access_token}",
+                "apikey"            :   self.AUTH.KEY,
+                "requesttimestamp"  :   utc_timestamp,
+                **additional_headers
+                }
+        )
+        return _raw
+
+    def getFuelPrices(self):
+        ret = fapi.getJSON(
+            "/FuelPriceCheck/v1/fuel/prices",
+            additional_headers={
+                "transactionid"     : "5023"
+
+            }
+        )
+        return ret
+
+
 fapi = FuelAPI(FUEL_AUTH)
 token = fapi.get_oauth_token()
+ret = fapi.getFuelPrices()
